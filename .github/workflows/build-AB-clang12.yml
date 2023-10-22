@@ -25,6 +25,11 @@ jobs:
         cat config.env | grep ENABLE_LXC_DOCKER= >> $GITHUB_ENV
         cat config.env | grep ENABLE_KERNELSU= >> $GITHUB_ENV
         cat config.env | grep KERNELSU_TAG= >> $GITHUB_ENV
+        
+    - name: Set swap to 10G
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 10
 
     - name: 构建编译内核环境
       run: |
@@ -43,6 +48,13 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
         git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android12-release clang-aosp
+        mkdir gcc-aosp-aarch64
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9  -b android12-release gcc-aosp-aarch64
+        mkdir gcc-aosp-arm32
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9  -b android12-release gcc-aosp-arm32
+        mkdir dtc-aosp
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/misc  -b android12-release dtc-aosp
+
                       
     - name: 下载内核源码
       run: |
@@ -76,19 +88,20 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/clang-r416183b/bin:$PATH
-        export KBUILD_BUILD_HOST=17
+        export DTC_EXT=$GITHUB_WORKSPACE/kernel_workspace/dtc-aosp/linux-x86/dtc/dtc
+        export KBUILD_BUILD_HOST=fodor
         export KBUILD_BUILD_USER=HyperPower
         make -j$(nproc --all) O=out ARCH=arm64 ${{ env.KERNEL_CONFIG }}
         if [ ${{env.LLVM_CONFIG}}=y ]; then
-        make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 CLANG_TRIPLE="aarch64-linux-gnu-" CROSS_COMPILE="aarch64-linux-gnu-" CROSS_COMPILE_ARM32="arm-linux-gnueabi-" LLVM=1 LLVM_IAS=1
+        make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 CLANG_TRIPLE="aarch64-linux-gnu-" CROSS_COMPILE=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-aarch64/bin/aarch64-linux-gnu-  CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-arm32/bin/arm-linux-gnueabi- DTC_EXT=${DTC_EXT} LD=ld.lld AR=llvm-ar NM=llvm-nm  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LDGOLD=aarch64-linux-gnu-ld.gold LLVM_AR=llvm-ar LLVM_DIS=llvm-dis LLVM=1 LLVM_IAS=1 
         else
-        make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 CLANG_TRIPLE="aarch64-linux-gnu-" CROSS_COMPILE="aarch64-linux-gnu-" CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
+        make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 CLANG_TRIPLE="aarch64-linux-gnu-" CROSS_COMPILE=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-aarch64/bin/aarch64-linux-gnu-  CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-arm32/bin/arm-linux-gnueabi- DTC_EXT=${DTC_EXT} LD=ld.lld AR=llvm-ar NM=llvm-nm  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LDGOLD=aarch64-linux-gnu-ld.gold LLVM_AR=llvm-ar LLVM_DIS=llvm-dis
         fi
                 
     - name: 准备打包内核
       run: |       
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone -b timelm https://github.com/IminatoPo/AnyKernel3
+        git clone --depth=1 https://github.com/osm0sis/AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
         sed -i 's!block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!block=auto;!g' AnyKernel3/anykernel.sh
         sed -i 's/is_slot_device=1;/is_slot_device=auto;/g' AnyKernel3/anykernel.sh        
@@ -101,7 +114,19 @@ jobs:
         fi        
         if [ ${{ env.DTBO_EXIST }} = true ]; then
             cp android-kernel/out/arch/arm64/boot/dtbo.img AnyKernel3/
-        fi  
+        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace/AnyKernel3/
+                        if test -e ./Image; then
+                                zip -r9 ${{ env.KERNEL_ZIP_NAME }} ./*
+                                test -e ./${{ env.KERNEL_ZIP_NAME }}
+                                echo -e "${cwarn} clean kernel files. . .${cno}"
+                                test -e ./Image && rm ./Image
+                                test -e ./dtbo.img && rm ./dtbo.img
+                        else
+                                echo -e "${cerror}stopmake => kernel file not found!${cno}"
+                                exit 1
+                        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace
         rm -rf AnyKernel3/.git* AnyKernel3/README.md
         rm -rf AnyKernel3/ramdisk AnyKernel3/modules AnyKernel3/patch
        
