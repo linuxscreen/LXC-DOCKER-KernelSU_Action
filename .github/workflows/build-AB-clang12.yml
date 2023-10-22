@@ -1,4 +1,4 @@
-name: 高端机 谷歌clang12.0.5
+name: 乐金V60 谷歌clang12.0.7
 on:
   workflow_dispatch:
 
