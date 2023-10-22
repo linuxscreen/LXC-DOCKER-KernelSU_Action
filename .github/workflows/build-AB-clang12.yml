@@ -44,9 +44,9 @@ jobs:
         mkdir clang-aosp
         git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android12-release clang-aosp
         mkdir gcc-aosp-aarch64
-        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9  -b android12-release gcc-aosp-aarch64
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9  -b android11-release gcc-aosp-aarch64
         mkdir gcc-aosp-arm32
-        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9  -b android12-release gcc-aosp-arm32
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9  -b android11-release gcc-aosp-arm32
         mkdir dtc-aosp
         git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/misc  -b android11-release dtc-aosp
 
@@ -82,10 +82,10 @@ jobs:
     - name: 开始编译内核
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/clang-r416183b/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/clang-r416183b1/bin:$PATH
         export DTC_EXT=$GITHUB_WORKSPACE/kernel_workspace/dtc-aosp/linux-x86/dtc/dtc
-        export KBUILD_BUILD_HOST=fodor
-        export KBUILD_BUILD_USER=HyperPower
+        export KBUILD_BUILD_HOST=timelm
+        export KBUILD_BUILD_USER=FodorZee
         make -j$(nproc --all) O=out ARCH=arm64 ${{ env.KERNEL_CONFIG }}
         if [ ${{env.LLVM_CONFIG}}=y ]; then
         make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 CLANG_TRIPLE="aarch64-linux-gnu-" CROSS_COMPILE=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-aarch64/bin/aarch64-linux-gnu-  CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/kernel_workspace/gcc-aosp-arm32/bin/arm-linux-gnueabi- DTC_EXT=${DTC_EXT} LD=ld.lld AR=llvm-ar NM=llvm-nm  OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LDGOLD=aarch64-linux-gnu-ld.gold LLVM_AR=llvm-ar LLVM_DIS=llvm-dis LLVM=1 LLVM_IAS=1 
