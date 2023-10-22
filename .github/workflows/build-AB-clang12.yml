@@ -25,11 +25,6 @@ jobs:
         cat config.env | grep ENABLE_LXC_DOCKER= >> $GITHUB_ENV
         cat config.env | grep ENABLE_KERNELSU= >> $GITHUB_ENV
         cat config.env | grep KERNELSU_TAG= >> $GITHUB_ENV
-        
-    - name: Set swap to 10G
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 10
 
     - name: 构建编译内核环境
       run: |
@@ -121,7 +116,6 @@ jobs:
                                 test -e ./${{ env.KERNEL_ZIP_NAME }}
                                 echo -e "${cwarn} clean kernel files. . .${cno}"
                                 test -e ./Image && rm ./Image
-                                test -e ./dtbo.img && rm ./dtbo.img
                         else
                                 echo -e "${cerror}stopmake => kernel file not found!${cno}"
                                 exit 1
