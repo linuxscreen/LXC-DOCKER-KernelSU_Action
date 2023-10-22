@@ -102,7 +102,19 @@ jobs:
         fi        
         if [ ${{ env.DTBO_EXIST }} = true ]; then
             cp android-kernel/out/arch/arm64/boot/dtbo.img AnyKernel3/
-        fi  
+        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace/AnyKernel3/
+                        if test -e ./Image; then
+                                zip -r9 ${{ env.KERNEL_ZIP_NAME }} ./*
+                                test -e ./${{ env.KERNEL_ZIP_NAME }}
+                                echo -e "${cwarn} clean kernel files. . .${cno}"
+                                test -e ./Image && rm ./Image
+                                test -e ./dtbo.img && rm ./dtbo.img
+                        else
+                                echo -e "${cerror}stopmake => kernel file not found!${cno}"
+                                exit 1
+                        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace
         rm -rf AnyKernel3/.git* AnyKernel3/README.md
         rm -rf AnyKernel3/ramdisk AnyKernel3/modules AnyKernel3/patch
        
