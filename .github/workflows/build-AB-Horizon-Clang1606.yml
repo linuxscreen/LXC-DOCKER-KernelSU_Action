@@ -1,4 +1,4 @@
-name: 高端机 zyc clang18
+name: 高端机 Horizon-Clang-16.0.6
 on:
   workflow_dispatch:
 
@@ -38,12 +38,12 @@ jobs:
        sudo rm -f /usr/bin/python
        sudo ln -s /usr/bin/python2.7 /usr/bin/python
                      
-    - name: 下载zyc-clang编译器
+    - name: 下载Horizon-Clang编译器
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        mkdir clang-zyc
+        mkdir Horizon-Clang
         wget https://storage.xzr.moe/horizon-clang/Horizon-Clang-16.0.6.tar.xz
-        tar -C clang-zyc/ -zxf Clang-18.0.0-20230903.tar.gz
+        tar -C Horizon-Clang/ -xJvf Horizon-Clang-16.0.6.tar.xz
               
     - name: 下载内核源码
       run: |
@@ -57,27 +57,7 @@ jobs:
         wget https://github.com/fate-think/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/add-lxc-docker-custom.sh
         chmod 755 add-lxc-docker-custom.sh
         ./add-lxc-docker-custom.sh android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
-        echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
-
-    - name: 添加runc补丁
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        wget https://github.com/fate-think/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/runcpatch.sh
-        chmod a+x runcpatch.sh
-        if [ -f android-kernel/kernel/cgroup.c ]; then
-        ./runcpatch.sh android-kernel/kernel/cgroup.c               
-        fi
-        if [ -f android-kernel/kernel/cgroup/cgroup.c ]; then
-        ./runcpatch.sh android-kernel/kernel/cgroup/cgroup.c               
-        fi
-    
-    - name: 修复clang18部分
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        sed -i "s/CONFIG_CC_STACKPROTECTOR_STRONG=y/# CONFIG_CC_STACKPROTECTOR_STRONG is not set/g" arch/arm64/configs/${{ env.KERNEL_CONFIG }}
-        wget https://github.com/fate-think/LXC-DOCKER-KernelSU_Action/releases/download/v3.0.0-stable/clangfix3.sh
-        chmod u+x clangfix3.sh
-        ./clangfix3.sh        
+        echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}     
 
     - name: 配置 ksu
       if: env.ENABLE_KERNELSU == 'true'
@@ -103,7 +83,7 @@ jobs:
     - name: 开始编译内核
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-zyc/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/kernel_workspace/Horizon-Clang/bin:$PATH
         export KBUILD_BUILD_HOST=17
         export KBUILD_BUILD_USER=HyperPower
         make -s -j$(nproc --all) O=out ARCH=arm64 ${{ env.KERNEL_CONFIG }}
@@ -116,7 +96,7 @@ jobs:
     - name: 准备打包内核
       run: |       
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/osm0sis/AnyKernel3
+        git clone --depth=1 https://github.com/osm0sis/AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
         sed -i 's!block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!block=auto;!g' AnyKernel3/anykernel.sh
         sed -i 's/is_slot_device=1;/is_slot_device=auto;/g' AnyKernel3/anykernel.sh        
@@ -129,7 +109,19 @@ jobs:
         fi        
         if [ ${{ env.DTBO_EXIST }} = true ]; then
             cp android-kernel/out/arch/arm64/boot/dtbo.img AnyKernel3/
-        fi  
+        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace/AnyKernel3/
+                        if test -e ./Image; then
+                                zip -r9 ${{ env.KERNEL_ZIP_NAME }} ./*
+                                test -e ./${{ env.KERNEL_ZIP_NAME }}
+                                echo -e "${cwarn} clean kernel files. . .${cno}"
+                                test -e ./Image && rm ./Image
+                                test -e ./dtbo.img && rm ./dtbo.img
+                        else
+                                echo -e "${cerror}stopmake => kernel file not found!${cno}"
+                                exit 1
+                        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace
         rm -rf AnyKernel3/.git* AnyKernel3/README.md
         rm -rf AnyKernel3/ramdisk AnyKernel3/modules AnyKernel3/patch
         
