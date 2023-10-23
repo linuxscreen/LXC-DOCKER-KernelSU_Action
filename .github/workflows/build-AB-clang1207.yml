@@ -44,11 +44,11 @@ jobs:
         mkdir clang-aosp
         git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 -b android12-release clang-aosp
         mkdir gcc-aosp-aarch64
-        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9  -b android11-release gcc-aosp-aarch64
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9  -b android-13.0.0_r0.122 gcc-aosp-aarch64
         mkdir gcc-aosp-arm32
-        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9  -b android11-release gcc-aosp-arm32
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9  -b android-13.0.0_r0.122 gcc-aosp-arm32
         mkdir dtc-aosp
-        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/misc  -b android11-release dtc-aosp
+        git clone -q --depth=1 --single-branch https://android.googlesource.com/platform/prebuilts/misc  -b android13-release dtc-aosp
 
                       
     - name: 下载内核源码
@@ -62,7 +62,7 @@ jobs:
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/IminatoPo/KernelSU/main/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
 
     - name: 开启kvm
       if: env.ENABLE_KVM == 'true'
@@ -96,10 +96,7 @@ jobs:
     - name: 准备打包内核
       run: |       
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/osm0sis/AnyKernel3
-        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
-        sed -i 's!block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!block=auto;!g' AnyKernel3/anykernel.sh
-        sed -i 's/is_slot_device=1;/is_slot_device=auto;/g' AnyKernel3/anykernel.sh        
+        git clone https://github.com/IminatoPo/AnyKernel3        
         cp android-kernel/out/arch/arm64/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
         if [ ${{ env.NEED_DTBO }} = true ]; then
             echo "NEED=true" >> $GITHUB_ENV
